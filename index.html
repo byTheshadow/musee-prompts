@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MUSÉE - 画师与提示词归档</title>
-  <!-- 引入 Tailwind CSS 用于美化 -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- 引入优雅的 Google Serif 字体 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -14,8 +12,8 @@
   <style>
     body {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: #F4F3EF; /* 暖纸色背景 */
-      color: #1C1A17; /* 深石墨色文字 */
+      background-color: #F4F3EF;
+      color: #1C1A17;
     }
     .serif-title {
       font-family: 'Playfair Display', serif;
@@ -23,7 +21,6 @@
     .logo-font {
       font-family: 'Cinzel', serif;
     }
-    /* 自定义毛玻璃和微光边框 */
     .museum-card {
       background: rgba(255, 255, 255, 0.45);
       backdrop-filter: blur(8px);
@@ -35,6 +32,13 @@
       border-color: rgba(28, 26, 23, 0.2);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
     }
+    /* 侧边栏动画相关 */
+    .drawer-open {
+      transform: translateX(0);
+    }
+    .drawer-closed {
+      transform: translateX(100%);
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col antialiased selection:bg-stone-200">
@@ -42,10 +46,8 @@
   <!-- 顶部导航栏 -->
   <header class="border-b border-stone-200/80 sticky top-0 bg-[#F4F3EF]/90 backdrop-blur-md z-40">
     <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-      <!-- 网站标志 -->
       <a href="#" class="logo-font text-2xl tracking-[0.2em] font-semibold">MUSÉE</a>
       
-      <!-- 分类标签（桌面端） -->
       <nav class="hidden md:flex space-x-8 text-xs tracking-[0.15em] font-medium text-stone-500 uppercase">
         <a href="#" class="text-stone-900 border-b border-stone-900 pb-1">画师串</a>
         <a href="#" class="hover:text-stone-900 transition pb-1">单独画师</a>
@@ -53,14 +55,12 @@
         <a href="#" class="hover:text-stone-900 transition pb-1">收藏画师</a>
       </nav>
 
-      <!-- 右侧控制按钮 -->
       <div class="flex items-center space-x-4">
-        <!-- 锁状态按钮 -->
         <button id="lockBtn" class="px-3 py-1.5 border border-stone-300 rounded-full text-xs tracking-wider hover:bg-stone-100 transition flex items-center gap-1.5">
           <span>🔒</span> <span>已加密</span>
         </button>
-        <!-- 添加按钮 -->
-        <button id="openAddModalBtn" class="w-8 h-8 rounded-full bg-stone-950 text-white flex items-center justify-center hover:bg-stone-850 transition">
+        <!-- 打开侧边栏按钮 -->
+        <button id="openDrawerBtn" class="w-8 h-8 rounded-full bg-stone-950 text-white flex items-center justify-center hover:bg-stone-800 transition">
           ＋
         </button>
       </div>
@@ -69,7 +69,6 @@
 
   <!-- 主体内容 -->
   <main class="flex-grow max-w-7xl w-full mx-auto px-6 py-12">
-    <!-- 顶部引言/筛选栏 -->
     <div class="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-stone-200 pb-6">
       <div>
         <span class="text-xs uppercase tracking-[0.2em] text-stone-400">ARCHIVE / 画师串</span>
@@ -80,65 +79,247 @@
       </div>
     </div>
 
-    <!-- 卡片网格列表 (展示临时数据用) -->
+    <!-- 卡片网格列表 -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      
-      <!-- 临时卡片 1：带图片的画师串卡片 -->
+      <!-- 临时展示卡片（略，跟之前一致） -->
       <div class="museum-card rounded-lg overflow-hidden flex flex-col">
         <div class="aspect-[4/3] bg-stone-200 relative overflow-hidden group">
-          <!-- 临时用的展示图 (仿参考图) -->
-          <img src="https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=800&q=80" alt="Art preview" class="w-full h-full object-cover transition duration-700 group-hover:scale-105">
+          <img src="https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=800&q=80" alt="Art preview" class="w-full h-full object-cover">
         </div>
         <div class="p-6 flex flex-col flex-grow justify-between">
           <div>
             <div class="text-[10px] uppercase tracking-[0.15em] text-stone-400 mb-2">ROOM 01 / 画师串</div>
-            <h2 class="serif-title text-xl italic font-semibold mb-3">Mucha & Vintage Elegance</h2>
-            <p class="text-xs text-stone-500 line-clamp-2 mb-4">备注：经典的穆夏复古风格，线条流畅，花卉装饰元素非常华丽。适合配合小裙子和古风服饰。</p>
-            <div class="flex flex-wrap gap-1.5 mb-6">
-              <span class="text-[10px] bg-stone-200/50 px-2 py-0.5 rounded text-stone-600">#ArtNouveau</span>
-              <span class="text-[10px] bg-stone-200/50 px-2 py-0.5 rounded text-stone-600">#插画</span>
-            </div>
+            <h2 class="serif-title text-xl italic font-semibold mb-3">Mucha Vintage</h2>
+            <p class="text-xs text-stone-500 mb-4">备注：经典穆夏复古风格。</p>
           </div>
-          <!-- 复制操作区域 -->
           <div class="pt-4 border-t border-stone-200/60 flex items-center justify-between">
-            <span class="text-[10px] text-stone-400 font-mono">1880 / 1910</span>
-            <button class="text-xs tracking-wider border-b border-stone-900 pb-0.5 hover:text-stone-500 hover:border-stone-500 transition font-medium">
-              COPY STRING
-            </button>
+            <span class="text-[10px] text-stone-400">1880 / 1910</span>
+            <button class="text-xs tracking-wider border-b border-stone-900 pb-0.5 font-medium">COPY STRING</button>
           </div>
         </div>
       </div>
-
-      <!-- 临时卡片 2：无图片的画师卡片（纯艺术排版） -->
-      <div class="museum-card rounded-lg p-6 flex flex-col justify-between min-h-[350px]">
-        <div>
-          <div class="text-[10px] uppercase tracking-[0.15em] text-stone-400 mb-2">ROOM 02 / 单独画师</div>
-          <h2 class="serif-title text-xl italic font-semibold mb-3">Guweiz 暗黑写实</h2>
-          <!-- 艺术感占位符：利用大字母作为无图时的装饰 -->
-          <div class="my-6 text-7xl font-light text-stone-200/70 select-none logo-font">G</div>
-          <p class="text-xs text-stone-500 line-clamp-3 mb-4">备注：画面氛围极佳，雨天、霓虹灯、孤独感。在提示词中加入该画师名字可以有效提升暗光写实感。</p>
-        </div>
-        <div>
-          <div class="flex flex-wrap gap-1.5 mb-6">
-            <span class="text-[10px] bg-stone-200/50 px-2 py-0.5 rounded text-stone-600">#暗黑写实</span>
-            <span class="text-[10px] bg-stone-200/50 px-2 py-0.5 rounded text-stone-600">#氛围</span>
-          </div>
-          <div class="pt-4 border-t border-stone-200/60 flex items-center justify-between">
-            <span class="text-[10px] text-stone-400 font-mono">2026 / SHADOW</span>
-            <button class="text-xs tracking-wider border-b border-stone-900 pb-0.5 hover:text-stone-500 hover:border-stone-500 transition font-medium">
-              COPY STRING
-            </button>
-          </div>
-        </div>
-      </div>
-
     </div>
   </main>
 
-  <!-- 底部页脚 -->
+  <!-- 侧边栏抽屉 (Drawer) -->
+  <div id="drawerOverlay" class="fixed inset-0 bg-stone-950/20 backdrop-blur-sm z-50 transition-opacity duration-300 opacity-0 pointer-events-none">
+    <div id="drawerPanel" class="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-[#F4F3EF] border-l border-stone-200 shadow-2xl flex flex-col drawer-closed transition-transform duration-300 ease-out">
+      
+      <!-- 抽屉头部 -->
+      <div class="p-6 border-b border-stone-200 flex items-center justify-between">
+        <h2 class="serif-title text-2xl italic font-medium">Add to Archive</h2>
+        <button id="closeDrawerBtn" class="text-stone-400 hover:text-stone-900 text-xl font-light">✕</button>
+      </div>
+
+      <!-- 选项卡按钮 -->
+      <div class="flex border-b border-stone-200 px-6">
+        <button id="tabSingleBtn" class="py-3 px-4 text-xs tracking-widest border-b-2 border-stone-950 font-medium text-stone-950">SINGLE / 单个添加</button>
+        <button id="tabBatchBtn" class="py-3 px-4 text-xs tracking-widest border-b-2 border-transparent font-medium text-stone-400 hover:text-stone-950">BATCH / 批量导入</button>
+      </div>
+
+      <!-- 滚动区域 -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        
+        <!-- 表单1：单个添加 -->
+        <form id="formSingle" class="space-y-4">
+          <div>
+            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Title / 名称 *</label>
+            <input type="text" placeholder="例如: 穆夏复古" class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-sm" required>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Category / 分类 *</label>
+              <select class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-sm">
+                <option value="artist-string">画师串</option>
+                <option value="single-artist">单独画师</option>
+                <option value="template">提示词模板</option>
+                <option value="collection">收藏画师</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Tags / 标签</label>
+              <input type="text" placeholder="用逗号隔开，如: #古风,#插画" class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-sm">
+            </div>
+          </div>
+          <div>
+            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Prompt String / 画师串内容 *</label>
+            <textarea placeholder="输入你要加密存储的提示词/画师串" rows="4" class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-sm" required></textarea>
+          </div>
+          <div>
+            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Remarks / 备注</label>
+            <textarea placeholder="写下使用心得、适合的权重或关联模型" rows="2" class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-sm"></textarea>
+          </div>
+          <div>
+            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Image Preview / 预览图</label>
+            <input type="file" id="imageInput" accept="image/*" class="w-full text-xs text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-stone-200 file:text-stone-700 hover:file:bg-stone-300">
+            <p id="compressStatus" class="text-[10px] text-stone-400 mt-1"></p>
+          </div>
+          
+          <button type="submit" class="w-full py-3 bg-stone-950 hover:bg-stone-850 text-white text-xs tracking-widest uppercase font-medium rounded transition">
+            Save to Archive / 保存
+          </button>
+        </form>
+
+        <!-- 表单2：批量导入 -->
+        <form id="formBatch" class="space-y-4 hidden">
+          <div>
+            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Batch Category / 导入目标分类 *</label>
+            <select id="batchCategory" class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-sm">
+              <option value="artist-string">画师串</option>
+              <option value="single-artist">单独画师</option>
+              <option value="template">提示词模板</option>
+              <option value="collection">收藏画师</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-2">Paste Content / 粘贴数据 (按格式)</label>
+            <div class="text-[10px] text-stone-400 mb-2 leading-relaxed bg-stone-200/40 p-3 rounded">
+              格式：<strong>名称 | 画师串 | 备注 | 标签</strong> (一行代表一个，各项用竖线 | 隔开)<br>
+              例如：<br>
+              穆夏复古 | Alphonse Mucha style | 经典复古 | #复古,#插画<br>
+              Guweiz写实 | Guweiz style | 适合暗黑氛围 | #写实,#氛围
+            </div>
+            <textarea id="batchInput" placeholder="名称 1 | 画师串 1 | 备注 1 | #标签1,#标签2&#10;名称 2 | 画师串 2 | 备注 2 | #标签3" rows="10" class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-xs font-mono"></textarea>
+          </div>
+          
+          <button type="submit" class="w-full py-3 bg-stone-950 hover:bg-stone-850 text-white text-xs tracking-widest uppercase font-medium rounded transition">
+            Import All / 一键导入
+          </button>
+        </form>
+
+      </div>
+    </div>
+  </div>
+
   <footer class="border-t border-stone-200 py-8 text-center text-[10px] tracking-[0.2em] text-stone-400 uppercase">
     © MUSÉE COLLECTION. ALL RIGHTS RESERVED.
   </footer>
 
+  <!-- 网页交互 JS 逻辑 -->
+  <script>
+    // 1. 侧边栏开关逻辑
+    const openDrawerBtn = document.getElementById('openDrawerBtn');
+    const closeDrawerBtn = document.getElementById('closeDrawerBtn');
+    const drawerOverlay = document.getElementById('drawerOverlay');
+    const drawerPanel = document.getElementById('drawerPanel');
+
+    function openDrawer() {
+      drawerOverlay.classList.remove('pointer-events-none', 'opacity-0');
+      drawerOverlay.classList.add('opacity-100');
+      drawerPanel.classList.remove('drawer-closed');
+      drawerPanel.classList.add('drawer-open');
+    }
+
+    function closeDrawer() {
+      drawerOverlay.classList.remove('opacity-100');
+      drawerOverlay.classList.add('pointer-events-none', 'opacity-0');
+      drawerPanel.classList.remove('drawer-open');
+      drawerPanel.classList.add('drawer-closed');
+    }
+
+    openDrawerBtn.addEventListener('click', openDrawer);
+    closeDrawerBtn.addEventListener('click', closeDrawer);
+    drawerOverlay.addEventListener('click', (e) => {
+      if (e.target === drawerOverlay) closeDrawer();
+    });
+
+    // 2. 侧边栏 Tab 切换
+    const tabSingleBtn = document.getElementById('tabSingleBtn');
+    const tabBatchBtn = document.getElementById('tabBatchBtn');
+    const formSingle = document.getElementById('formSingle');
+    const formBatch = document.getElementById('formBatch');
+
+    tabSingleBtn.addEventListener('click', () => {
+      tabSingleBtn.className = "py-3 px-4 text-xs tracking-widest border-b-2 border-stone-950 font-medium text-stone-950";
+      tabBatchBtn.className = "py-3 px-4 text-xs tracking-widest border-b-2 border-transparent font-medium text-stone-400 hover:text-stone-950";
+      formSingle.classList.remove('hidden');
+      formBatch.classList.add('hidden');
+    });
+
+    tabBatchBtn.addEventListener('click', () => {
+      tabBatchBtn.className = "py-3 px-4 text-xs tracking-widest border-b-2 border-stone-950 font-medium text-stone-950";
+      tabSingleBtn.className = "py-3 px-4 text-xs tracking-widest border-b-2 border-transparent font-medium text-stone-400 hover:text-stone-950";
+      formBatch.classList.remove('hidden');
+      formSingle.classList.add('hidden');
+    });
+
+    // 3. 本地图片前端压缩逻辑 (最大800px宽，转webp格式)
+    let compressedImageBase64 = ""; // 用于存放压缩后的 Base64 字符串
+    const imageInput = document.getElementById('imageInput');
+    const compressStatus = document.getElementById('compressStatus');
+
+    imageInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      compressStatus.innerText = "正在压缩图片...";
+      
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = function(event) {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const max_width = 800; // 限制图片最大宽度为 800 像素
+          let width = img.width;
+          let height = img.height;
+
+          if (width > max_width) {
+            height = Math.round((height * max_width) / width);
+            width = max_width;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // 导出为 WebP 格式，压缩比设置为 0.7 (70%画质，基本肉眼看不出差别，但体积非常小)
+          compressedImageBase64 = canvas.toDataURL('image/webp', 0.7);
+          
+          // 计算体积大小并展示
+          const sizeInKb = Math.round((compressedImageBase64.length * 3) / 4 / 1024);
+          compressStatus.innerText = `压缩成功! 大小约: ${sizeInKb} KB (格式: WebP)`;
+        };
+      };
+    });
+
+    // 4. 监听批量导入的提交行为 (目前仅做格式拆解测试)
+    formBatch.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const rawText = document.getElementById('batchInput').value;
+      const category = document.getElementById('batchCategory').value;
+      
+      if (!rawText.trim()) return alert("请输入需要导入的内容！");
+
+      const lines = rawText.split('\n');
+      const itemsToImport = [];
+
+      lines.forEach((line) => {
+        if (!line.trim()) return; // 略过空行
+        
+        // 按照 " | " 拆分
+        const parts = line.split('|');
+        const title = parts[0]?.trim() || "";
+        const content = parts[1]?.trim() || "";
+        const remarks = parts[2]?.trim() || "";
+        const tags = parts[3]?.trim() || "";
+
+        if (title && content) {
+          itemsToImport.push({
+            title,
+            category,
+            content,
+            remarks,
+            tags
+          });
+        }
+      });
+
+      console.log("准备导入的数据列表:", itemsToImport);
+      alert(`成功解析 ${itemsToImport.length} 条数据，数据库连接配置好后将自动写入。`);
+    });
+  </script>
 </body>
 </html>
