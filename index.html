@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MUSÉE - 画师与提示词归档</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入 Supabase 官方客户端 SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- 引入 CryptoJS 用于本地加密 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Plus+Jakarta+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -32,12 +37,13 @@
       border-color: rgba(28, 26, 23, 0.2);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
     }
-    /* 侧边栏动画相关 */
-    .drawer-open {
-      transform: translateX(0);
-    }
-    .drawer-closed {
-      transform: translateX(100%);
+    .drawer-open { transform: translateX(0); }
+    .drawer-closed { transform: translateX(100%); }
+    
+    /* 禁用选中的防复制样式 */
+    .no-select {
+      user-select: none;
+      -webkit-user-select: none;
     }
   </style>
 </head>
@@ -46,21 +52,23 @@
   <!-- 顶部导航栏 -->
   <header class="border-b border-stone-200/80 sticky top-0 bg-[#F4F3EF]/90 backdrop-blur-md z-40">
     <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-      <a href="#" class="logo-font text-2xl tracking-[0.2em] font-semibold">MUSÉE</a>
+      <a href="#" onclick="switchCategory('artist-string')" class="logo-font text-2xl tracking-[0.2em] font-semibold">MUSÉE</a>
       
-      <nav class="hidden md:flex space-x-8 text-xs tracking-[0.15em] font-medium text-stone-500 uppercase">
-        <a href="#" class="text-stone-900 border-b border-stone-900 pb-1">画师串</a>
-        <a href="#" class="hover:text-stone-900 transition pb-1">单独画师</a>
-        <a href="#" class="hover:text-stone-900 transition pb-1">提示词模板</a>
-        <a href="#" class="hover:text-stone-900 transition pb-1">收藏画师</a>
+      <!-- 分类标签导航 -->
+      <nav id="categoryNav" class="hidden md:flex space-x-8 text-xs tracking-[0.15em] font-medium text-stone-500 uppercase">
+        <a href="#" onclick="switchCategory('artist-string')" data-cate="artist-string" class="text-stone-900 border-b border-stone-900 pb-1">画师串</a>
+        <a href="#" onclick="switchCategory('single-artist')" data-cate="single-artist" class="hover:text-stone-900 transition pb-1">单独画师</a>
+        <a href="#" onclick="switchCategory('template')" data-cate="template" class="hover:text-stone-900 transition pb-1">提示词模板</a>
+        <a href="#" onclick="switchCategory('collection')" data-cate="collection" class="hover:text-stone-900 transition pb-1">收藏画师</a>
       </nav>
 
       <div class="flex items-center space-x-4">
-        <button id="lockBtn" class="px-3 py-1.5 border border-stone-300 rounded-full text-xs tracking-wider hover:bg-stone-100 transition flex items-center gap-1.5">
-          <span>🔒</span> <span>已加密</span>
+        <!-- 密码解锁按钮 -->
+        <button id="lockBtn" onclick="promptPassword()" class="px-3 py-1.5 border border-stone-300 rounded-full text-xs tracking-wider hover:bg-stone-100 transition flex items-center gap-1.5">
+          <span id="lockIcon">🔒</span> <span id="lockText">未解锁</span>
         </button>
-        <!-- 打开侧边栏按钮 -->
-        <button id="openDrawerBtn" class="w-8 h-8 rounded-full bg-stone-950 text-white flex items-center justify-center hover:bg-stone-800 transition">
+        <!-- 打开侧边栏 -->
+        <button id="openDrawerBtn" class="w-8 h-8 rounded-full bg-stone-950 text-white flex items-center justify-center hover:bg-stone-850 transition">
           ＋
         </button>
       </div>
@@ -71,33 +79,17 @@
   <main class="flex-grow max-w-7xl w-full mx-auto px-6 py-12">
     <div class="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-stone-200 pb-6">
       <div>
-        <span class="text-xs uppercase tracking-[0.2em] text-stone-400">ARCHIVE / 画师串</span>
-        <h1 class="serif-title text-4xl italic mt-2 font-medium">The Silent Witness</h1>
+        <span class="text-xs uppercase tracking-[0.2em] text-stone-400">ARCHIVE / 归档库</span>
+        <h1 id="currentCategoryTitle" class="serif-title text-4xl italic mt-2 font-medium">Artist Strings</h1>
       </div>
       <div class="text-right text-xs text-stone-400 tracking-wider">
-        <span>CURRENTLY SELECTING: ALL ITEMS</span>
+        <span id="itemCount">LOADING...</span>
       </div>
     </div>
 
-    <!-- 卡片网格列表 -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      <!-- 临时展示卡片（略，跟之前一致） -->
-      <div class="museum-card rounded-lg overflow-hidden flex flex-col">
-        <div class="aspect-[4/3] bg-stone-200 relative overflow-hidden group">
-          <img src="https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?auto=format&fit=crop&w=800&q=80" alt="Art preview" class="w-full h-full object-cover">
-        </div>
-        <div class="p-6 flex flex-col flex-grow justify-between">
-          <div>
-            <div class="text-[10px] uppercase tracking-[0.15em] text-stone-400 mb-2">ROOM 01 / 画师串</div>
-            <h2 class="serif-title text-xl italic font-semibold mb-3">Mucha Vintage</h2>
-            <p class="text-xs text-stone-500 mb-4">备注：经典穆夏复古风格。</p>
-          </div>
-          <div class="pt-4 border-t border-stone-200/60 flex items-center justify-between">
-            <span class="text-[10px] text-stone-400">1880 / 1910</span>
-            <button class="text-xs tracking-wider border-b border-stone-900 pb-0.5 font-medium">COPY STRING</button>
-          </div>
-        </div>
-      </div>
+    <!-- 动态展示卡片的容器 -->
+    <div id="cardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <!-- 这里的卡片由 JavaScript 动态渲染出来 -->
     </div>
   </main>
 
@@ -105,31 +97,28 @@
   <div id="drawerOverlay" class="fixed inset-0 bg-stone-950/20 backdrop-blur-sm z-50 transition-opacity duration-300 opacity-0 pointer-events-none">
     <div id="drawerPanel" class="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-[#F4F3EF] border-l border-stone-200 shadow-2xl flex flex-col drawer-closed transition-transform duration-300 ease-out">
       
-      <!-- 抽屉头部 -->
       <div class="p-6 border-b border-stone-200 flex items-center justify-between">
         <h2 class="serif-title text-2xl italic font-medium">Add to Archive</h2>
         <button id="closeDrawerBtn" class="text-stone-400 hover:text-stone-900 text-xl font-light">✕</button>
       </div>
 
-      <!-- 选项卡按钮 -->
       <div class="flex border-b border-stone-200 px-6">
         <button id="tabSingleBtn" class="py-3 px-4 text-xs tracking-widest border-b-2 border-stone-950 font-medium text-stone-950">SINGLE / 单个添加</button>
         <button id="tabBatchBtn" class="py-3 px-4 text-xs tracking-widest border-b-2 border-transparent font-medium text-stone-400 hover:text-stone-950">BATCH / 批量导入</button>
       </div>
 
-      <!-- 滚动区域 -->
       <div class="flex-1 overflow-y-auto p-6 space-y-6">
         
         <!-- 表单1：单个添加 -->
-        <form id="formSingle" class="space-y-4">
+        <form id="formSingle" onsubmit="handleSingleSubmit(event)" class="space-y-4">
           <div>
             <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Title / 名称 *</label>
-            <input type="text" placeholder="例如: 穆夏复古" class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-sm" required>
+            <input type="text" id="singleTitle" placeholder="例如: 穆夏复古" class="w-full px-3 py-2 bg-white/50 border border-stone-300 rounded focus:outline-none focus:border-stone-950 text-sm" required>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Category / 分类 *</label>
-              <select class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-sm">
+              <select id="singleCategory" class="w-full px-3 py-2 bg-white/50 border border-stone-300 rounded focus:outline-none focus:border-stone-950 text-sm">
                 <option value="artist-string">画师串</option>
                 <option value="single-artist">单独画师</option>
                 <option value="template">提示词模板</option>
@@ -138,16 +127,16 @@
             </div>
             <div>
               <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Tags / 标签</label>
-              <input type="text" placeholder="用逗号隔开，如: #古风,#插画" class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-sm">
+              <input type="text" id="singleTags" placeholder="#古风,#插画" class="w-full px-3 py-2 bg-white/50 border border-stone-300 rounded focus:outline-none focus:border-stone-950 text-sm">
             </div>
           </div>
           <div>
-            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Prompt String / 画师串内容 *</label>
-            <textarea placeholder="输入你要加密存储的提示词/画师串" rows="4" class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-sm" required></textarea>
+            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Prompt String / 内容 * (将被密码加密)</label>
+            <textarea id="singleContent" placeholder="输入你要加密存储的提示词/画师串" rows="4" class="w-full px-3 py-2 bg-white/50 border border-stone-300 rounded focus:outline-none focus:border-stone-950 text-sm" required></textarea>
           </div>
           <div>
-            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Remarks / 备注</label>
-            <textarea placeholder="写下使用心得、适合的权重或关联模型" rows="2" class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-sm"></textarea>
+            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Remarks / 备注 (明文存储，方便查看)</label>
+            <textarea id="singleRemarks" placeholder="写下使用心得、适合的权重或关联模型" rows="2" class="w-full px-3 py-2 bg-white/50 border border-stone-300 rounded focus:outline-none focus:border-stone-950 text-sm"></textarea>
           </div>
           <div>
             <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Image Preview / 预览图</label>
@@ -161,10 +150,10 @@
         </form>
 
         <!-- 表单2：批量导入 -->
-        <form id="formBatch" class="space-y-4 hidden">
+        <form id="formBatch" onsubmit="handleBatchSubmit(event)" class="space-y-4 hidden">
           <div>
             <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Batch Category / 导入目标分类 *</label>
-            <select id="batchCategory" class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-sm">
+            <select id="batchCategory" class="w-full px-3 py-2 bg-white/50 border border-stone-300 rounded focus:outline-none focus:border-stone-950 text-sm">
               <option value="artist-string">画师串</option>
               <option value="single-artist">单独画师</option>
               <option value="template">提示词模板</option>
@@ -172,14 +161,13 @@
             </select>
           </div>
           <div>
-            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-2">Paste Content / 粘贴数据 (按格式)</label>
+            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-2">Paste Content / 粘贴数据</label>
             <div class="text-[10px] text-stone-400 mb-2 leading-relaxed bg-stone-200/40 p-3 rounded">
-              格式：<strong>名称 | 画师串 | 备注 | 标签</strong> (一行代表一个，各项用竖线 | 隔开)<br>
+              格式：<strong>名称 | 画师串 | 备注 | 标签</strong> (一行一个，用竖线分隔)<br>
               例如：<br>
-              穆夏复古 | Alphonse Mucha style | 经典复古 | #复古,#插画<br>
-              Guweiz写实 | Guweiz style | 适合暗黑氛围 | #写实,#氛围
+              穆夏复古 | Alphonse Mucha style | 经典复古 | #复古,#插画
             </div>
-            <textarea id="batchInput" placeholder="名称 1 | 画师串 1 | 备注 1 | #标签1,#标签2&#10;名称 2 | 画师串 2 | 备注 2 | #标签3" rows="10" class="w-full px-3 py-2 bg-white/50 border border-stone-250 rounded focus:outline-none focus:border-stone-950 text-xs font-mono"></textarea>
+            <textarea id="batchInput" placeholder="名称 1 | 画师串 1 | 备注 1 | #标签1&#10;名称 2 | 画师串 2 | 备注 2 | #标签2" rows="10" class="w-full px-3 py-2 bg-white/50 border border-stone-300 rounded focus:outline-none focus:border-stone-950 text-xs font-mono"></textarea>
           </div>
           
           <button type="submit" class="w-full py-3 bg-stone-950 hover:bg-stone-850 text-white text-xs tracking-widest uppercase font-medium rounded transition">
@@ -191,13 +179,349 @@
     </div>
   </div>
 
-  <footer class="border-t border-stone-200 py-8 text-center text-[10px] tracking-[0.2em] text-stone-400 uppercase">
+  <footer class="border-t border-stone-200 py-8 text-center text-[10px] tracking-[0.2em] text-stone-400 uppercase mt-auto">
     © MUSÉE COLLECTION. ALL RIGHTS RESERVED.
   </footer>
 
-  <!-- 网页交互 JS 逻辑 -->
   <script>
-    // 1. 侧边栏开关逻辑
+    // ==========================================
+    // ⚠️ 数据库配置区：请在此处填入你的 Supabase 信息
+    // ==========================================
+    const SUPABASE_URL = "https://gbblgyxkpzkiislxtrfw.supabase.co"; // 已经填好
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdiYmxneXhrcHpraWlzbHh0cmZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5MjY1MTMsImV4cCI6MjEwMjUwMjUxM30.W8omQO5rvy167JedlMqrfmaKazUqo97wMOO8CBI4PKY"; // <- 粘贴在这里
+    
+    // 初始化 Supabase 客户端
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ==========================================
+    // 全局状态管理
+    // ==========================================
+    let currentCategory = 'artist-string'; // 当前选中的分类
+    let allItems = []; // 存放从数据库获取到的原始数据
+    let masterPassword = sessionStorage.getItem('musee_password') || ''; // 本地内存密码
+
+    // ==========================================
+    // 安全：加解密模块
+    // ==========================================
+    // 加密
+    function encryptData(text, password) {
+      if (!password) return text;
+      return CryptoJS.AES.encrypt(text, password).toString();
+    }
+
+    // 解密
+    function decryptData(ciphertext, password) {
+      if (!password) return null;
+      try {
+        const bytes = CryptoJS.AES.decrypt(ciphertext, password);
+        const originalText = bytes.toString(CryptoJS.enc.Utf8);
+        return originalText || null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // 主密码输入与验证
+    function promptPassword() {
+      const pwd = prompt("请输入您的主密码以解密/保存画师串:");
+      if (pwd !== null) {
+        masterPassword = pwd;
+        sessionStorage.setItem('musee_password', pwd);
+        updateLockUI();
+        renderCards(); // 重新渲染卡片进行解密
+      }
+    }
+
+    function updateLockUI() {
+      const lockIcon = document.getElementById('lockIcon');
+      const lockText = document.getElementById('lockText');
+      if (masterPassword) {
+        lockIcon.innerText = "🔓";
+        lockText.innerText = "已解锁";
+      } else {
+        lockIcon.innerText = "🔒";
+        lockText.innerText = "未解锁";
+      }
+    }
+
+    // ==========================================
+    // 数据存取逻辑
+    // ==========================================
+    
+    // 从数据库获取全部数据
+    async function fetchItems() {
+      document.getElementById('itemCount').innerText = "LOADING...";
+      const { data, error } = await _supabase
+        .from('prompts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Error fetching data:", error);
+        alert("获取数据失败，请检查 API 配置或网络！");
+        return;
+      }
+
+      allItems = data;
+      renderCards();
+    }
+
+    // 单个保存
+    async function handleSingleSubmit(e) {
+      e.preventDefault();
+      
+      if (!masterPassword) {
+        alert("请先在右上角 🔒 设置主密码再保存，否则数据无法加密！");
+        promptPassword();
+        return;
+      }
+
+      const title = document.getElementById('singleTitle').value;
+      const category = document.getElementById('singleCategory').value;
+      const content = document.getElementById('singleContent').value;
+      const remarks = document.getElementById('singleRemarks').value;
+      const tags = document.getElementById('singleTags').value;
+
+      // 在客户端用主密码对画师串加密
+      const encryptedContent = encryptData(content, masterPassword);
+
+      const { error } = await _supabase
+        .from('prompts')
+        .insert([{
+          title,
+          category,
+          content: encryptedContent,
+          remarks,
+          tags,
+          image_base64: compressedImageBase64 || null,
+          is_encrypted: true
+        }]);
+
+      if (error) {
+        alert("保存失败: " + error.message);
+      } else {
+        alert("成功保存至云端归档！");
+        // 清空表单
+        document.getElementById('formSingle').reset();
+        compressedImageBase64 = "";
+        document.getElementById('compressStatus').innerText = "";
+        closeDrawer();
+        fetchItems(); // 刷新页面数据
+      }
+    }
+
+    // 批量导入
+    async function handleBatchSubmit(e) {
+      e.preventDefault();
+
+      if (!masterPassword) {
+        alert("请先设置主密码再进行批量导入，以确保数据加密！");
+        promptPassword();
+        return;
+      }
+
+      const category = document.getElementById('batchCategory').value;
+      const rawText = document.getElementById('batchInput').value;
+
+      if (!rawText.trim()) return alert("请输入数据！");
+
+      const lines = rawText.split('\n');
+      const rowsToInsert = [];
+
+      lines.forEach(line => {
+        if (!line.trim()) return;
+        const parts = line.split('|');
+        const title = parts[0]?.trim() || "";
+        const rawContent = parts[1]?.trim() || "";
+        const remarks = parts[2]?.trim() || "";
+        const tags = parts[3]?.trim() || "";
+
+        if (title && rawContent) {
+          // 对每一条数据进行加密
+          const encryptedContent = encryptData(rawContent, masterPassword);
+          rowsToInsert.push({
+            title,
+            category,
+            content: encryptedContent,
+            remarks,
+            tags,
+            is_encrypted: true
+          });
+        }
+      });
+
+      if (rowsToInsert.length === 0) {
+        return alert("未解析出有效的数据，请检查格式是否用 '|' 分隔。");
+      }
+
+      const { error } = await _supabase.from('prompts').insert(rowsToInsert);
+
+      if (error) {
+        alert("批量导入失败: " + error.message);
+      } else {
+        alert(`成功导入 ${rowsToInsert.length} 条数据！`);
+        document.getElementById('batchInput').value = "";
+        closeDrawer();
+        fetchItems();
+      }
+    }
+
+    // 一键复制功能 (防泄露/防复制设计)
+    function copyPrompt(btn, ciphertext) {
+      if (!masterPassword) {
+        alert("此画师串已被加密，请先在右上角输入密码解锁后才能复制！");
+        promptPassword();
+        return;
+      }
+
+      const decrypted = decryptData(ciphertext, masterPassword);
+      if (!decrypted) {
+        alert("密码错误或无法解密，复制失败！请重新设置正确的主密码。");
+        return;
+      }
+
+      // 复制到剪贴板
+      navigator.clipboard.writeText(decrypted).then(() => {
+        const originalText = btn.innerText;
+        btn.innerText = "COPIED! ✓";
+        btn.style.color = "#15803d"; // 变绿
+        setTimeout(() => {
+          btn.innerText = originalText;
+          btn.style.color = "";
+        }, 1500);
+      }).catch(err => {
+        alert("浏览器限制，复制失败，请手动选择复制。");
+      });
+    }
+
+    // ==========================================
+    // 渲染 UI 卡片列表
+    // ==========================================
+    function switchCategory(cate) {
+      currentCategory = cate;
+      
+      // 更新导航高亮
+      document.querySelectorAll('#categoryNav a').forEach(a => {
+        if (a.getAttribute('data-cate') === cate) {
+          a.className = "text-stone-900 border-b border-stone-900 pb-1";
+        } else {
+          a.className = "hover:text-stone-900 transition pb-1";
+        }
+      });
+
+      // 更新大标题
+      const titles = {
+        'artist-string': 'Artist Strings / 画师串',
+        'single-artist': 'Individual Artists / 单独画师',
+        'template': 'Prompt Templates / 提示词模板',
+        'collection': 'Collection / 收藏画师'
+      };
+      document.getElementById('currentCategoryTitle').innerText = titles[cate] || 'Archive';
+
+      renderCards();
+    }
+
+    function renderCards() {
+      const container = document.getElementById('cardsContainer');
+      container.innerHTML = "";
+
+      // 过滤对应分类的数据
+      const filtered = allItems.filter(item => item.category === currentCategory);
+      
+      document.getElementById('itemCount').innerText = `${filtered.length} ITEMS`;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-20 text-center text-stone-400 text-xs tracking-widest uppercase">
+            No items in this exhibition.
+          </div>
+        `;
+        return;
+      }
+
+      filtered.forEach(item => {
+        // 创建卡片元素
+        const card = document.createElement('div');
+        card.className = "museum-card rounded-lg overflow-hidden flex flex-col justify-between";
+
+        // 判断是否有图片
+        let imageHtml = "";
+        if (item.image_base64) {
+          imageHtml = `
+            <div class="aspect-[4/3] bg-stone-200 relative overflow-hidden group">
+              <img src="${item.image_base64}" alt="${item.title}" class="w-full h-full object-cover transition duration-700 group-hover:scale-105">
+            </div>
+          `;
+        } else {
+          // 无图时的艺术感大写字母占位设计
+          const firstChar = item.title.charAt(0).toUpperCase();
+          imageHtml = `
+            <div class="aspect-[4/3] bg-stone-300/30 flex items-center justify-center select-none">
+              <span class="logo-font text-8xl font-light text-stone-200">${firstChar}</span>
+            </div>
+          `;
+        }
+
+        // 解析并展示密码状态下的画师串内容（如果未解锁，不显示明文防止被直接截屏/查看）
+        let contentDisplay = "🔒 已加密 (点击下方按钮复制解锁)";
+        if (masterPassword) {
+          const decrypted = decryptData(item.content, masterPassword);
+          if (decrypted) {
+            contentDisplay = decrypted;
+          } else {
+            contentDisplay = "❌ 密码错误，无法解密内容";
+          }
+        }
+
+        // 标签 HTML
+        let tagsHtml = "";
+        if (item.tags) {
+          tagsHtml = item.tags.split(',').map(tag => 
+            `<span class="text-[10px] bg-stone-200/50 px-2 py-0.5 rounded text-stone-600">${tag.trim()}</span>`
+          ).join(' ');
+        }
+
+        card.innerHTML = `
+          <div>
+            ${imageHtml}
+            <div class="p-6">
+              <div class="text-[10px] uppercase tracking-[0.15em] text-stone-400 mb-2">
+                ${item.category.replace('-', ' ')}
+              </div>
+              <h2 class="serif-title text-xl italic font-semibold mb-3">${item.title}</h2>
+              
+              <!-- 备注 -->
+              <p class="text-xs text-stone-500 mb-4">${item.remarks || '无备注'}</p>
+              
+              <!-- 内容区：防复制样式 -->
+              <div class="no-select p-3 bg-stone-200/40 rounded text-xs font-mono text-stone-600 break-all mb-4" oncontextmenu="return false">
+                ${contentDisplay}
+              </div>
+            </div>
+          </div>
+
+          <div class="px-6 pb-6">
+            <div class="flex flex-wrap gap-1.5 mb-6">
+              ${tagsHtml}
+            </div>
+            <div class="pt-4 border-t border-stone-200/60 flex items-center justify-between">
+              <span class="text-[10px] text-stone-400 font-mono">
+                ${new Date(item.created_at).toLocaleDateString()}
+              </span>
+              <button onclick="copyPrompt(this, '${item.content}')" class="text-xs tracking-wider border-b border-stone-900 pb-0.5 hover:text-stone-500 hover:border-stone-500 transition font-medium">
+                COPY STRING
+              </button>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    // ==========================================
+    // 侧边栏与 Tab 切换 (与旧版一致)
+    // ==========================================
     const openDrawerBtn = document.getElementById('openDrawerBtn');
     const closeDrawerBtn = document.getElementById('closeDrawerBtn');
     const drawerOverlay = document.getElementById('drawerOverlay');
@@ -223,7 +547,6 @@
       if (e.target === drawerOverlay) closeDrawer();
     });
 
-    // 2. 侧边栏 Tab 切换
     const tabSingleBtn = document.getElementById('tabSingleBtn');
     const tabBatchBtn = document.getElementById('tabBatchBtn');
     const formSingle = document.getElementById('formSingle');
@@ -243,8 +566,10 @@
       formSingle.classList.add('hidden');
     });
 
-    // 3. 本地图片前端压缩逻辑 (最大800px宽，转webp格式)
-    let compressedImageBase64 = ""; // 用于存放压缩后的 Base64 字符串
+    // ==========================================
+    // 图片本地压缩
+    // ==========================================
+    let compressedImageBase64 = "";
     const imageInput = document.getElementById('imageInput');
     const compressStatus = document.getElementById('compressStatus');
 
@@ -261,7 +586,7 @@
         img.src = event.target.result;
         img.onload = function() {
           const canvas = document.createElement('canvas');
-          const max_width = 800; // 限制图片最大宽度为 800 像素
+          const max_width = 800;
           let width = img.width;
           let height = img.height;
 
@@ -275,51 +600,19 @@
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
 
-          // 导出为 WebP 格式，压缩比设置为 0.7 (70%画质，基本肉眼看不出差别，但体积非常小)
           compressedImageBase64 = canvas.toDataURL('image/webp', 0.7);
-          
-          // 计算体积大小并展示
           const sizeInKb = Math.round((compressedImageBase64.length * 3) / 4 / 1024);
-          compressStatus.innerText = `压缩成功! 大小约: ${sizeInKb} KB (格式: WebP)`;
+          compressStatus.innerText = `压缩成功! 大小约: ${sizeInKb} KB`;
         };
       };
     });
 
-    // 4. 监听批量导入的提交行为 (目前仅做格式拆解测试)
-    formBatch.addEventListener('submit', function(e) {
-      e.preventDefault();
-      const rawText = document.getElementById('batchInput').value;
-      const category = document.getElementById('batchCategory').value;
-      
-      if (!rawText.trim()) return alert("请输入需要导入的内容！");
-
-      const lines = rawText.split('\n');
-      const itemsToImport = [];
-
-      lines.forEach((line) => {
-        if (!line.trim()) return; // 略过空行
-        
-        // 按照 " | " 拆分
-        const parts = line.split('|');
-        const title = parts[0]?.trim() || "";
-        const content = parts[1]?.trim() || "";
-        const remarks = parts[2]?.trim() || "";
-        const tags = parts[3]?.trim() || "";
-
-        if (title && content) {
-          itemsToImport.push({
-            title,
-            category,
-            content,
-            remarks,
-            tags
-          });
-        }
-      });
-
-      console.log("准备导入的数据列表:", itemsToImport);
-      alert(`成功解析 ${itemsToImport.length} 条数据，数据库连接配置好后将自动写入。`);
-    });
+    // ==========================================
+    // 页面初始化加载
+    // ==========================================
+    updateLockUI();
+    fetchItems();
   </script>
 </body>
 </html>
+
