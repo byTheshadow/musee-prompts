@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MUSÉE - 画师与提示词归档</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- 引入 Supabase 官方客户端 SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- 引入 CryptoJS 用于本地加密 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,10 +35,18 @@
       border-color: rgba(28, 26, 23, 0.2);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
     }
+    /* 记事本/文档风格：更宽松、像一页纸 */
+    .document-card {
+      background: rgba(255, 255, 255, 0.6);
+      border-left: 2px solid #1C1A17;
+      border-top: 1px solid rgba(28, 26, 23, 0.08);
+      border-right: 1px solid rgba(28, 26, 23, 0.08);
+      border-bottom: 1px solid rgba(28, 26, 23, 0.08);
+      transition: all 0.3s ease;
+    }
+    
     .drawer-open { transform: translateX(0); }
     .drawer-closed { transform: translateX(100%); }
-    
-    /* 禁用选中的防复制样式 */
     .no-select {
       user-select: none;
       -webkit-user-select: none;
@@ -54,20 +60,19 @@
     <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
       <a href="#" onclick="switchCategory('artist-string')" class="logo-font text-2xl tracking-[0.2em] font-semibold">MUSÉE</a>
       
-      <!-- 分类标签导航 -->
+      <!-- 分类导航（增加了记事文档） -->
       <nav id="categoryNav" class="hidden md:flex space-x-8 text-xs tracking-[0.15em] font-medium text-stone-500 uppercase">
         <a href="#" onclick="switchCategory('artist-string')" data-cate="artist-string" class="text-stone-900 border-b border-stone-900 pb-1">画师串</a>
         <a href="#" onclick="switchCategory('single-artist')" data-cate="single-artist" class="hover:text-stone-900 transition pb-1">单独画师</a>
         <a href="#" onclick="switchCategory('template')" data-cate="template" class="hover:text-stone-900 transition pb-1">提示词模板</a>
         <a href="#" onclick="switchCategory('collection')" data-cate="collection" class="hover:text-stone-900 transition pb-1">收藏画师</a>
+        <a href="#" onclick="switchCategory('document')" data-cate="document" class="hover:text-stone-900 transition pb-1">📌 记事文档</a>
       </nav>
 
       <div class="flex items-center space-x-4">
-        <!-- 密码解锁按钮 -->
         <button id="lockBtn" onclick="promptPassword()" class="px-3 py-1.5 border border-stone-300 rounded-full text-xs tracking-wider hover:bg-stone-100 transition flex items-center gap-1.5">
           <span id="lockIcon">🔒</span> <span id="lockText">未解锁</span>
         </button>
-        <!-- 打开侧边栏 -->
         <button id="openDrawerBtn" class="w-8 h-8 rounded-full bg-stone-950 text-white flex items-center justify-center hover:bg-stone-850 transition">
           ＋
         </button>
@@ -87,9 +92,9 @@
       </div>
     </div>
 
-    <!-- 动态展示卡片的容器 -->
+    <!-- 动态展示容器：通过 JS 动态切换网格布局与文档布局 -->
     <div id="cardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      <!-- 这里的卡片由 JavaScript 动态渲染出来 -->
+      <!-- 内容渲染 -->
     </div>
   </main>
 
@@ -98,19 +103,22 @@
     <div id="drawerPanel" class="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-[#F4F3EF] border-l border-stone-200 shadow-2xl flex flex-col drawer-closed transition-transform duration-300 ease-out">
       
       <div class="p-6 border-b border-stone-200 flex items-center justify-between">
-        <h2 class="serif-title text-2xl italic font-medium">Add to Archive</h2>
+        <h2 id="drawerTitle" class="serif-title text-2xl italic font-medium">Add to Archive</h2>
         <button id="closeDrawerBtn" class="text-stone-400 hover:text-stone-900 text-xl font-light">✕</button>
       </div>
 
-      <div class="flex border-b border-stone-200 px-6">
+      <div id="drawerTabs" class="flex border-b border-stone-200 px-6">
         <button id="tabSingleBtn" class="py-3 px-4 text-xs tracking-widest border-b-2 border-stone-950 font-medium text-stone-950">SINGLE / 单个添加</button>
         <button id="tabBatchBtn" class="py-3 px-4 text-xs tracking-widest border-b-2 border-transparent font-medium text-stone-400 hover:text-stone-950">BATCH / 批量导入</button>
       </div>
 
       <div class="flex-1 overflow-y-auto p-6 space-y-6">
         
-        <!-- 表单1：单个添加 -->
+        <!-- 表单1：单个添加/编辑 -->
         <form id="formSingle" onsubmit="handleSingleSubmit(event)" class="space-y-4">
+          <!-- 隐藏输入框，用来记录当前是不是在编辑某条已有的数据 -->
+          <input type="hidden" id="editId" value="">
+          
           <div>
             <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Title / 名称 *</label>
             <input type="text" id="singleTitle" placeholder="例如: 穆夏复古" class="w-full px-3 py-2 bg-white/50 border border-stone-300 rounded focus:outline-none focus:border-stone-950 text-sm" required>
@@ -123,6 +131,7 @@
                 <option value="single-artist">单独画师</option>
                 <option value="template">提示词模板</option>
                 <option value="collection">收藏画师</option>
+                <option value="document">📌 记事文档</option>
               </select>
             </div>
             <div>
@@ -131,20 +140,27 @@
             </div>
           </div>
           <div>
-            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Prompt String / 内容 * (将被密码加密)</label>
-            <textarea id="singleContent" placeholder="输入你要加密存储的提示词/画师串" rows="4" class="w-full px-3 py-2 bg-white/50 border border-stone-300 rounded focus:outline-none focus:border-stone-950 text-sm" required></textarea>
+            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Prompt String / 内容 * (加密存储)</label>
+            <textarea id="singleContent" placeholder="输入画师串或文档详细内容" rows="6" class="w-full px-3 py-2 bg-white/50 border border-stone-300 rounded focus:outline-none focus:border-stone-950 text-sm" required></textarea>
           </div>
           <div>
-            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Remarks / 备注 (明文存储，方便查看)</label>
+            <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Remarks / 备注 (明文)</label>
             <textarea id="singleRemarks" placeholder="写下使用心得、适合的权重或关联模型" rows="2" class="w-full px-3 py-2 bg-white/50 border border-stone-300 rounded focus:outline-none focus:border-stone-950 text-sm"></textarea>
           </div>
+          
           <div>
             <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-1">Image Preview / 预览图</label>
+            <!-- 展示已有图 -->
+            <div id="existingImageContainer" class="hidden mb-2">
+              <span class="text-[10px] text-stone-400 block mb-1">已有预览图:</span>
+              <img id="existingImagePreview" src="" class="h-20 object-cover rounded border border-stone-300">
+              <button type="button" onclick="removeExistingImage()" class="text-[10px] text-red-500 underline mt-1 block">删除此图</button>
+            </div>
             <input type="file" id="imageInput" accept="image/*" class="w-full text-xs text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-stone-200 file:text-stone-700 hover:file:bg-stone-300">
             <p id="compressStatus" class="text-[10px] text-stone-400 mt-1"></p>
           </div>
           
-          <button type="submit" class="w-full py-3 bg-stone-950 hover:bg-stone-850 text-white text-xs tracking-widest uppercase font-medium rounded transition">
+          <button type="submit" id="singleSubmitBtn" class="w-full py-3 bg-stone-950 hover:bg-stone-850 text-white text-xs tracking-widest uppercase font-medium rounded transition">
             Save to Archive / 保存
           </button>
         </form>
@@ -158,14 +174,13 @@
               <option value="single-artist">单独画师</option>
               <option value="template">提示词模板</option>
               <option value="collection">收藏画师</option>
+              <option value="document">📌 记事文档</option>
             </select>
           </div>
           <div>
             <label class="block text-[10px] tracking-widest text-stone-400 uppercase mb-2">Paste Content / 粘贴数据</label>
             <div class="text-[10px] text-stone-400 mb-2 leading-relaxed bg-stone-200/40 p-3 rounded">
-              格式：<strong>名称 | 画师串 | 备注 | 标签</strong> (一行一个，用竖线分隔)<br>
-              例如：<br>
-              穆夏复古 | Alphonse Mucha style | 经典复古 | #复古,#插画
+              格式：<strong>名称 | 画师串 | 备注 | 标签</strong> (一行一个，用竖线分隔)
             </div>
             <textarea id="batchInput" placeholder="名称 1 | 画师串 1 | 备注 1 | #标签1&#10;名称 2 | 画师串 2 | 备注 2 | #标签2" rows="10" class="w-full px-3 py-2 bg-white/50 border border-stone-300 rounded focus:outline-none focus:border-stone-950 text-xs font-mono"></textarea>
           </div>
@@ -185,31 +200,30 @@
 
   <script>
     // ==========================================
-    // ⚠️ 数据库配置区：请在此处填入你的 Supabase 信息
+    // ⚠️ 数据库配置区
     // ==========================================
-    const SUPABASE_URL = "https://gbblgyxkpzkiislxtrfw.supabase.co"; // 已经填好
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdiYmxneXhrcHpraWlzbHh0cmZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5MjY1MTMsImV4cCI6MjEwMjUwMjUxM30.W8omQO5rvy167JedlMqrfmaKazUqo97wMOO8CBI4PKY"; // <- 粘贴在这里
-    
-    // 初始化 Supabase 客户端
+    const SUPABASE_URL = "https://gbblgyxkpzkiislxtrfw.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdiYmxneXhrcHpraWlzbHh0cmZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5MjY1MTMsImV4cCI6MjEwMjUwMjUxM30.W8omQO5rvy167JedlMqrfmaKazUqo97wMOO8CBI4PKY"; // <- 重新粘贴你的 Anon Key
+
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // ==========================================
-    // 全局状态管理
+    // 全局状态
     // ==========================================
-    let currentCategory = 'artist-string'; // 当前选中的分类
-    let allItems = []; // 存放从数据库获取到的原始数据
-    let masterPassword = sessionStorage.getItem('musee_password') || ''; // 本地内存密码
+    let currentCategory = 'artist-string'; 
+    let allItems = []; 
+    let masterPassword = sessionStorage.getItem('musee_password') || ''; 
+    let compressedImageBase64 = ""; // 保存新压缩的图片
+    let existingImageBase64 = "";   // 编辑时已有的图片数据
 
     // ==========================================
-    // 安全：加解密模块
+    // 加解密模块
     // ==========================================
-    // 加密
     function encryptData(text, password) {
       if (!password) return text;
       return CryptoJS.AES.encrypt(text, password).toString();
     }
 
-    // 解密
     function decryptData(ciphertext, password) {
       if (!password) return null;
       try {
@@ -221,14 +235,13 @@
       }
     }
 
-    // 主密码输入与验证
     function promptPassword() {
       const pwd = prompt("请输入您的主密码以解密/保存画师串:");
       if (pwd !== null) {
         masterPassword = pwd;
         sessionStorage.setItem('musee_password', pwd);
         updateLockUI();
-        renderCards(); // 重新渲染卡片进行解密
+        renderCards(); 
       }
     }
 
@@ -245,10 +258,9 @@
     }
 
     // ==========================================
-    // 数据存取逻辑
+    // 数据库增删改查
     // ==========================================
     
-    // 从数据库获取全部数据
     async function fetchItems() {
       document.getElementById('itemCount').innerText = "LOADING...";
       const { data, error } = await _supabase
@@ -257,8 +269,7 @@
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error("Error fetching data:", error);
-        alert("获取数据失败，请检查 API 配置或网络！");
+        console.error("Error fetching:", error);
         return;
       }
 
@@ -266,47 +277,62 @@
       renderCards();
     }
 
-    // 单个保存
+    // 单个保存或更新
     async function handleSingleSubmit(e) {
       e.preventDefault();
       
       if (!masterPassword) {
-        alert("请先在右上角 🔒 设置主密码再保存，否则数据无法加密！");
+        alert("请先设置主密码以加密数据！");
         promptPassword();
         return;
       }
 
+      const id = document.getElementById('editId').value;
       const title = document.getElementById('singleTitle').value;
       const category = document.getElementById('singleCategory').value;
       const content = document.getElementById('singleContent').value;
       const remarks = document.getElementById('singleRemarks').value;
       const tags = document.getElementById('singleTags').value;
 
-      // 在客户端用主密码对画师串加密
       const encryptedContent = encryptData(content, masterPassword);
+      
+      // 决定最终存盘的图片：如果有新压缩的用新的，没有就保留现有的，如果清空了就用 null
+      const finalImage = compressedImageBase64 || existingImageBase64 || null;
 
-      const { error } = await _supabase
-        .from('prompts')
-        .insert([{
-          title,
-          category,
-          content: encryptedContent,
-          remarks,
-          tags,
-          image_base64: compressedImageBase64 || null,
-          is_encrypted: true
-        }]);
+      const dataRow = {
+        title,
+        category,
+        content: encryptedContent,
+        remarks,
+        tags,
+        image_base64: finalImage,
+        is_encrypted: true
+      };
 
-      if (error) {
-        alert("保存失败: " + error.message);
+      let responseError;
+      
+      if (id) {
+        // 编辑模式：更新数据
+        const { error } = await _supabase
+          .from('prompts')
+          .update(dataRow)
+          .eq('id', id);
+        responseError = error;
       } else {
-        alert("成功保存至云端归档！");
-        // 清空表单
-        document.getElementById('formSingle').reset();
-        compressedImageBase64 = "";
-        document.getElementById('compressStatus').innerText = "";
+        // 新增模式：插入数据
+        const { error } = await _supabase
+          .from('prompts')
+          .insert([dataRow]);
+        responseError = error;
+      }
+
+      if (responseError) {
+        alert("保存失败: " + responseError.message);
+      } else {
+        alert(id ? "修改成功！" : "成功保存至归档！");
+        resetSingleForm();
         closeDrawer();
-        fetchItems(); // 刷新页面数据
+        fetchItems();
       }
     }
 
@@ -315,7 +341,7 @@
       e.preventDefault();
 
       if (!masterPassword) {
-        alert("请先设置主密码再进行批量导入，以确保数据加密！");
+        alert("请先设置主密码再批量导入！");
         promptPassword();
         return;
       }
@@ -337,7 +363,6 @@
         const tags = parts[3]?.trim() || "";
 
         if (title && rawContent) {
-          // 对每一条数据进行加密
           const encryptedContent = encryptData(rawContent, masterPassword);
           rowsToInsert.push({
             title,
@@ -350,14 +375,12 @@
         }
       });
 
-      if (rowsToInsert.length === 0) {
-        return alert("未解析出有效的数据，请检查格式是否用 '|' 分隔。");
-      }
+      if (rowsToInsert.length === 0) return alert("未解析到有效数据。");
 
       const { error } = await _supabase.from('prompts').insert(rowsToInsert);
 
       if (error) {
-        alert("批量导入失败: " + error.message);
+        alert("导入失败: " + error.message);
       } else {
         alert(`成功导入 ${rowsToInsert.length} 条数据！`);
         document.getElementById('batchInput').value = "";
@@ -366,41 +389,114 @@
       }
     }
 
-    // 一键复制功能 (防泄露/防复制设计)
+    // 删除单条
+    async function deleteItem(id, title) {
+      if (!confirm(`确认要删除 “${title}” 吗？此操作无法撤销。`)) return;
+
+      const { error } = await _supabase
+        .from('prompts')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        alert("删除失败: " + error.message);
+      } else {
+        fetchItems();
+      }
+    }
+
+    // 编辑按钮点击：填充表单并展开
+    function editItem(id) {
+      const item = allItems.find(i => i.id === id);
+      if (!item) return;
+
+      if (!masterPassword) {
+        alert("解密编辑需要输入密码！");
+        promptPassword();
+        if (!masterPassword) return; // 用户如果取消了就终止
+      }
+
+      const decrypted = decryptData(item.content, masterPassword);
+      if (!decrypted) {
+        alert("无法解密，请确保主密码输入正确！");
+        return;
+      }
+
+      // 切换 Drawer 状态为“编辑单个”
+      document.getElementById('editId').value = item.id;
+      document.getElementById('singleTitle').value = item.title;
+      document.getElementById('singleCategory').value = item.category;
+      document.getElementById('singleContent').value = decrypted;
+      document.getElementById('singleRemarks').value = item.remarks || "";
+      document.getElementById('singleTags').value = item.tags || "";
+      
+      // 处理已有图片预览
+      if (item.image_base64) {
+        existingImageBase64 = item.image_base64;
+        document.getElementById('existingImagePreview').src = item.image_base64;
+        document.getElementById('existingImageContainer').classList.remove('hidden');
+      } else {
+        existingImageBase64 = "";
+        document.getElementById('existingImageContainer').classList.add('hidden');
+      }
+
+      // 调整 UI
+      document.getElementById('drawerTitle').innerText = "Edit Archive";
+      document.getElementById('singleSubmitBtn').innerText = "Update Archive / 更新";
+      document.getElementById('drawerTabs').classList.add('hidden'); // 编辑时隐藏 Tab
+      
+      // 切换到单个 Tab 表单
+      tabSingleBtn.click();
+      openDrawer();
+    }
+
+    function removeExistingImage() {
+      existingImageBase64 = "";
+      document.getElementById('existingImageContainer').classList.add('hidden');
+    }
+
+    function resetSingleForm() {
+      document.getElementById('formSingle').reset();
+      document.getElementById('editId').value = "";
+      compressedImageBase64 = "";
+      existingImageBase64 = "";
+      document.getElementById('existingImageContainer').classList.add('hidden');
+      document.getElementById('compressStatus').innerText = "";
+      document.getElementById('drawerTitle').innerText = "Add to Archive";
+      document.getElementById('singleSubmitBtn').innerText = "Save to Archive / 保存";
+      document.getElementById('drawerTabs').classList.remove('hidden');
+    }
+
+    // ==========================================
+    // 复制与 UI 渲染
+    // ==========================================
     function copyPrompt(btn, ciphertext) {
       if (!masterPassword) {
-        alert("此画师串已被加密，请先在右上角输入密码解锁后才能复制！");
+        alert("内容已加密，请先输入密码解锁后才能复制！");
         promptPassword();
         return;
       }
 
       const decrypted = decryptData(ciphertext, masterPassword);
       if (!decrypted) {
-        alert("密码错误或无法解密，复制失败！请重新设置正确的主密码。");
+        alert("解密失败，主密码错误！");
         return;
       }
 
-      // 复制到剪贴板
       navigator.clipboard.writeText(decrypted).then(() => {
         const originalText = btn.innerText;
         btn.innerText = "COPIED! ✓";
-        btn.style.color = "#15803d"; // 变绿
+        btn.style.color = "#15803d";
         setTimeout(() => {
           btn.innerText = originalText;
           btn.style.color = "";
         }, 1500);
-      }).catch(err => {
-        alert("浏览器限制，复制失败，请手动选择复制。");
       });
     }
 
-    // ==========================================
-    // 渲染 UI 卡片列表
-    // ==========================================
     function switchCategory(cate) {
       currentCategory = cate;
       
-      // 更新导航高亮
       document.querySelectorAll('#categoryNav a').forEach(a => {
         if (a.getAttribute('data-cate') === cate) {
           a.className = "text-stone-900 border-b border-stone-900 pb-1";
@@ -409,12 +505,12 @@
         }
       });
 
-      // 更新大标题
       const titles = {
         'artist-string': 'Artist Strings / 画师串',
         'single-artist': 'Individual Artists / 单独画师',
         'template': 'Prompt Templates / 提示词模板',
-        'collection': 'Collection / 收藏画师'
+        'collection': 'Collection / 收藏画师',
+        'document': '📌 Documents & Notes / 记事文档'
       };
       document.getElementById('currentCategoryTitle').innerText = titles[cate] || 'Archive';
 
@@ -425,102 +521,149 @@
       const container = document.getElementById('cardsContainer');
       container.innerHTML = "";
 
-      // 过滤对应分类的数据
       const filtered = allItems.filter(item => item.category === currentCategory);
-      
       document.getElementById('itemCount').innerText = `${filtered.length} ITEMS`;
 
       if (filtered.length === 0) {
         container.innerHTML = `
           <div class="col-span-full py-20 text-center text-stone-400 text-xs tracking-widest uppercase">
-            No items in this exhibition.
+            No items found.
           </div>
         `;
         return;
       }
 
-      filtered.forEach(item => {
-        // 创建卡片元素
-        const card = document.createElement('div');
-        card.className = "museum-card rounded-lg overflow-hidden flex flex-col justify-between";
+      // 如果当前是“记事文档”模式，切换成单列宽松排版
+      if (currentCategory === 'document') {
+        container.className = "max-w-4xl mx-auto space-y-12 w-full col-span-full"; // 更改容器类为单列居中
+        
+        filtered.forEach(item => {
+          const docElement = document.createElement('div');
+          docElement.className = "document-card p-8 md:p-12 rounded-lg shadow-sm flex flex-col justify-between";
 
-        // 判断是否有图片
-        let imageHtml = "";
-        if (item.image_base64) {
-          imageHtml = `
-            <div class="aspect-[4/3] bg-stone-200 relative overflow-hidden group">
-              <img src="${item.image_base64}" alt="${item.title}" class="w-full h-full object-cover transition duration-700 group-hover:scale-105">
-            </div>
-          `;
-        } else {
-          // 无图时的艺术感大写字母占位设计
-          const firstChar = item.title.charAt(0).toUpperCase();
-          imageHtml = `
-            <div class="aspect-[4/3] bg-stone-300/30 flex items-center justify-center select-none">
-              <span class="logo-font text-8xl font-light text-stone-200">${firstChar}</span>
-            </div>
-          `;
-        }
-
-        // 解析并展示密码状态下的画师串内容（如果未解锁，不显示明文防止被直接截屏/查看）
-        let contentDisplay = "🔒 已加密 (点击下方按钮复制解锁)";
-        if (masterPassword) {
-          const decrypted = decryptData(item.content, masterPassword);
-          if (decrypted) {
-            contentDisplay = decrypted;
-          } else {
-            contentDisplay = "❌ 密码错误，无法解密内容";
+          let contentDisplay = "🔒 此文档已被加密 (请在右上角解锁查看)";
+          if (masterPassword) {
+            const decrypted = decryptData(item.content, masterPassword);
+            contentDisplay = decrypted ? decrypted : "❌ 密码错误，无法解密";
           }
-        }
 
-        // 标签 HTML
-        let tagsHtml = "";
-        if (item.tags) {
-          tagsHtml = item.tags.split(',').map(tag => 
-            `<span class="text-[10px] bg-stone-200/50 px-2 py-0.5 rounded text-stone-600">${tag.trim()}</span>`
-          ).join(' ');
-        }
+          // 将文档中的换行替换成 HTML 的换行，展现宽松的文本段落
+          const formattedContent = contentDisplay.replace(/\n/g, '<br>');
 
-        card.innerHTML = `
-          <div>
-            ${imageHtml}
-            <div class="p-6">
-              <div class="text-[10px] uppercase tracking-[0.15em] text-stone-400 mb-2">
-                ${item.category.replace('-', ' ')}
+          docElement.innerHTML = `
+            <div>
+              <div class="flex items-center justify-between border-b border-stone-200 pb-4 mb-6">
+                <div>
+                  <span class="text-[10px] tracking-widest text-stone-400 uppercase">📌 DOCUMENT NOTE</span>
+                  <h2 class="serif-title text-2xl font-semibold mt-1">${item.title}</h2>
+                </div>
+                <div class="flex gap-4 text-xs">
+                  <button onclick="editItem('${item.id}')" class="text-stone-400 hover:text-stone-850">编辑</button>
+                  <button onclick="deleteItem('${item.id}', '${item.title}')" class="text-red-400 hover:text-red-600">删除</button>
+                </div>
               </div>
-              <h2 class="serif-title text-xl italic font-semibold mb-3">${item.title}</h2>
               
-              <!-- 备注 -->
-              <p class="text-xs text-stone-500 mb-4">${item.remarks || '无备注'}</p>
-              
-              <!-- 内容区：防复制样式 -->
-              <div class="no-select p-3 bg-stone-200/40 rounded text-xs font-mono text-stone-600 break-all mb-4" oncontextmenu="return false">
-                ${contentDisplay}
+              <!-- 配图展现（文档模式只在顶部放一个优雅的长图） -->
+              ${item.image_base64 ? `<img src="${item.image_base64}" class="w-full max-h-[300px] object-cover rounded mb-6 opacity-90">` : ''}
+
+              <!-- 宽松明文备注 -->
+              ${item.remarks ? `<p class="text-xs text-stone-400 italic mb-6">备注：${item.remarks}</p>` : ''}
+
+              <!-- 宽松宽敞的文章段落渲染，支持防复制 -->
+              <div class="no-select text-stone-700 leading-8 text-base tracking-wide whitespace-pre-wrap font-serif mb-8 p-6 bg-white/40 rounded border border-stone-200/50" oncontextmenu="return false">
+                ${formattedContent}
               </div>
             </div>
-          </div>
-
-          <div class="px-6 pb-6">
-            <div class="flex flex-wrap gap-1.5 mb-6">
-              ${tagsHtml}
-            </div>
-            <div class="pt-4 border-t border-stone-200/60 flex items-center justify-between">
-              <span class="text-[10px] text-stone-400 font-mono">
-                ${new Date(item.created_at).toLocaleDateString()}
-              </span>
-              <button onclick="copyPrompt(this, '${item.content}')" class="text-xs tracking-wider border-b border-stone-900 pb-0.5 hover:text-stone-500 hover:border-stone-500 transition font-medium">
-                COPY STRING
+            
+            <div class="flex items-center justify-between text-xs border-t border-stone-100 pt-4">
+              <span class="text-[10px] text-stone-400">${new Date(item.created_at).toLocaleDateString()}</span>
+              <button onclick="copyPrompt(this, '${item.content}')" class="tracking-wider border-b border-stone-900 pb-0.5 hover:text-stone-500 font-medium">
+                COPY DOCUMENT CONTENT
               </button>
             </div>
-          </div>
-        `;
+          `;
+          container.appendChild(docElement);
+        });
 
-        container.appendChild(card);
-      });
+      } else {
+        // 其他常规卡片布局 (画师串/模板等)
+        container.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8";
+
+        filtered.forEach(item => {
+          const card = document.createElement('div');
+          card.className = "museum-card rounded-lg overflow-hidden flex flex-col justify-between";
+
+          let imageHtml = "";
+          if (item.image_base64) {
+            imageHtml = `
+              <div class="aspect-[4/3] bg-stone-200 relative overflow-hidden group">
+                <img src="${item.image_base64}" alt="${item.title}" class="w-full h-full object-cover transition duration-700 group-hover:scale-105">
+              </div>
+            `;
+          } else {
+            const firstChar = item.title.charAt(0).toUpperCase();
+            imageHtml = `
+              <div class="aspect-[4/3] bg-stone-300/30 flex items-center justify-center select-none">
+                <span class="logo-font text-8xl font-light text-stone-200">${firstChar}</span>
+              </div>
+            `;
+          }
+
+          let contentDisplay = "🔒 已加密 (点击下方按钮复制解锁)";
+          if (masterPassword) {
+            const decrypted = decryptData(item.content, masterPassword);
+            contentDisplay = decrypted ? decrypted : "❌ 密码错误，无法解密内容";
+          }
+
+          let tagsHtml = "";
+          if (item.tags) {
+            tagsHtml = item.tags.split(',').map(tag => 
+              `<span class="text-[10px] bg-stone-200/50 px-2 py-0.5 rounded text-stone-600">${tag.trim()}</span>`
+            ).join(' ');
+          }
+
+          card.innerHTML = `
+            <div>
+              ${imageHtml}
+              <div class="p-6">
+                <!-- 顶部编辑与删除微调 -->
+                <div class="flex items-center justify-between text-[10px] uppercase tracking-[0.15em] text-stone-400 mb-2">
+                  <span>${item.category.replace('-', ' ')}</span>
+                  <div class="flex gap-2">
+                    <button onclick="editItem('${item.id}')" class="hover:text-stone-900 transition">编辑</button>
+                    <button onclick="deleteItem('${item.id}', '${item.title}')" class="hover:text-red-500 transition">删除</button>
+                  </div>
+                </div>
+                <h2 class="serif-title text-xl italic font-semibold mb-3">${item.title}</h2>
+                <p class="text-xs text-stone-500 mb-4">${item.remarks || '无备注'}</p>
+                
+                <div class="no-select p-3 bg-stone-200/40 rounded text-xs font-mono text-stone-600 break-all mb-4" oncontextmenu="return false">
+                  ${contentDisplay}
+                </div>
+              </div>
+            </div>
+
+            <div class="px-6 pb-6">
+              <div class="flex flex-wrap gap-1.5 mb-6">
+                ${tagsHtml}
+              </div>
+              <div class="pt-4 border-t border-stone-200/60 flex items-center justify-between">
+                <span class="text-[10px] text-stone-400 font-mono">
+                  ${new Date(item.created_at).toLocaleDateString()}
+                </span>
+                <button onclick="copyPrompt(this, '${item.content}')" class="text-xs tracking-wider border-b border-stone-900 pb-0.5 hover:text-stone-500 font-medium">
+                  COPY STRING
+                </button>
+              </div>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      }
     }
 
     // ==========================================
-    // 侧边栏与 Tab 切换 (与旧版一致)
+    // 侧边栏与 Tab 切换交互
     // ==========================================
     const openDrawerBtn = document.getElementById('openDrawerBtn');
     const closeDrawerBtn = document.getElementById('closeDrawerBtn');
@@ -539,6 +682,7 @@
       drawerOverlay.classList.add('pointer-events-none', 'opacity-0');
       drawerPanel.classList.remove('drawer-open');
       drawerPanel.classList.add('drawer-closed');
+      resetSingleForm(); // 关闭时重置表单，避免“编辑”状态遗留
     }
 
     openDrawerBtn.addEventListener('click', openDrawer);
@@ -567,9 +711,8 @@
     });
 
     // ==========================================
-    // 图片本地压缩
+    // 图片压缩
     // ==========================================
-    let compressedImageBase64 = "";
     const imageInput = document.getElementById('imageInput');
     const compressStatus = document.getElementById('compressStatus');
 
@@ -602,17 +745,16 @@
 
           compressedImageBase64 = canvas.toDataURL('image/webp', 0.7);
           const sizeInKb = Math.round((compressedImageBase64.length * 3) / 4 / 1024);
-          compressStatus.innerText = `压缩成功! 大小约: ${sizeInKb} KB`;
+          compressStatus.innerText = `压缩成功! 大小约: ${sizeInKb} KB (将覆盖原图)`;
         };
       };
     });
 
     // ==========================================
-    // 页面初始化加载
+    // 初始化
     // ==========================================
     updateLockUI();
     fetchItems();
   </script>
 </body>
 </html>
-
