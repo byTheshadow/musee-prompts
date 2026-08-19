@@ -206,6 +206,121 @@ function editItem(id) {
   document.getElementById('drawerTitle').innerText = "Edit Archive";
   document.getElementById('singleSubmitBtn').innerText = "Update Archive / 更新";
   document.getElementById('drawerTabs').classList.add('hidden');
-  document.getElementById('tabSingleBtn').click();
+  
+  const tabSingleBtn = document.getElementById('tabSingleBtn');
+  if (tabSingleBtn) tabSingleBtn.click();
   openDrawer();
+}
+
+// 表单提交：单个新增或编辑更新
+async function handleSingleSubmit(e) {
+  e.preventDefault();
+
+  if (!masterPassword) {
+    alert("请先设置主密码以加密数据！");
+    promptPassword();
+    return;
+  }
+
+  const id = document.getElementById('editId').value;
+  const title = document.getElementById('singleTitle').value;
+  const category = document.getElementById('singleCategory').value;
+  const content = document.getElementById('singleContent').value;
+  const remarks = document.getElementById('singleRemarks').value;
+  const tags = document.getElementById('singleTags').value;
+
+  const encryptedContent = encryptData(content, masterPassword);
+  const finalImage = compressedImageBase64 || existingImageBase64 || null;
+
+  const dataRow = {
+    title,
+    category,
+    content: encryptedContent,
+    remarks,
+    tags,
+    image_base64: finalImage,
+    is_encrypted: true
+  };
+
+  const { error } = await saveItemToDB(dataRow, id || null);
+
+  if (error) {
+    alert("保存失败: " + error.message);
+  } else {
+    alert(id ? "修改成功！" : "成功保存至归档！");
+    resetSingleForm();
+    closeDrawer();
+    loadArchiveData();
+  }
+}
+
+// 表单提交：批量导入
+async function handleBatchSubmit(e) {
+  e.preventDefault();
+
+  if (!masterPassword) {
+    alert("请先设置主密码再批量导入！");
+    promptPassword();
+    return;
+  }
+
+  const category = document.getElementById('batchCategory').value;
+  const rawText = document.getElementById('batchInput').value;
+
+  if (!rawText.trim()) return alert("请输入数据！");
+
+  const lines = rawText.split('\n');
+  const rowsToInsert = [];
+
+  lines.forEach(line => {
+    if (!line.trim()) return;
+    const parts = line.split('|');
+    const title = parts[0]?.trim() || "";
+    const rawContent = parts[1]?.trim() || "";
+    const remarks = parts[2]?.trim() || "";
+    const tags = parts[3]?.trim() || "";
+
+    if (title && rawContent) {
+      const encryptedContent = encryptData(rawContent, masterPassword);
+      rowsToInsert.push({
+        title,
+        category,
+        content: encryptedContent,
+        remarks,
+        tags,
+        is_encrypted: true
+      });
+    }
+  });
+
+  if (rowsToInsert.length === 0) return alert("未解析到有效数据。");
+
+  const { error } = await batchSaveItemsToDB(rowsToInsert);
+
+  if (error) {
+    alert("导入失败: " + error.message);
+  } else {
+    alert(`成功导入 ${rowsToInsert.length} 条数据！`);
+    document.getElementById('batchInput').value = "";
+    closeDrawer();
+    loadArchiveData();
+  }
+}
+
+function removeExistingImage() {
+  existingImageBase64 = "";
+  document.getElementById('existingImageContainer').classList.add('hidden');
+}
+
+function resetSingleForm() {
+  const formSingle = document.getElementById('formSingle');
+  if (formSingle) formSingle.reset();
+  document.getElementById('editId').value = "";
+  compressedImageBase64 = "";
+  existingImageBase64 = "";
+  document.getElementById('existingImageContainer').classList.add('hidden');
+  document.getElementById('compressStatus').innerText = "";
+  document.getElementById('drawerTitle').innerText = "Add to Archive";
+  document.getElementById('singleSubmitBtn').innerText = "Save to Archive / 保存";
+  document.getElementById('drawerTabs').classList.remove('hidden');
 }
