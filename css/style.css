@@ -1,0 +1,53 @@
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: #F4F3EF;
+  color: #1C1A17;
+}
+.serif-title {
+  font-family: 'Playfair Display', serif;
+}
+.logo-font {
+  font-family: 'Cinzel', serif;
+}
+
+/* 博物馆艺术卡片 */
+.museum-card {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(28, 26, 23, 0.08);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.museum-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(28, 26, 23, 0.2);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.04);
+}
+
+/* 记事本/文档风格 */
+.document-card {
+  background: rgba(255, 255, 255, 0.6);
+  border-left: 2px solid #1C1A17;
+  border-top: 1px solid rgba(28, 26, 23, 0.08);
+  border-right: 1px solid rgba(28, 26, 23, 0.08);
+  border-bottom: 1px solid rgba(28, 26, 23, 0.08);
+  transition: all 0.3s ease;
+}
+
+/* 抽屉动画 */
+.drawer-open { transform: translateX(0); }
+.drawer-closed { transform: translateX(100%); }
+
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* 老虎机动画 */
+@keyframes slotReel {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-50%); }
+  100% { transform: translateY(0); }
+}
+.slot-spinning {
+  animation: slotReel 0.15s infinite linear;
+}
