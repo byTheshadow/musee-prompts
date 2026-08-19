@@ -150,28 +150,63 @@ function renderChatMessages() {
 
   chatHistory.forEach((msg, index) => {
     const isUser = msg.role === 'user';
-    const wrapper = document.createElement('div');
 
+    const wrapper = document.createElement('div');
     wrapper.className = `flex ${isUser ? 'justify-end' : 'justify-start'} group`;
 
-    wrapper.innerHTML = `
-      <div class="max-w-[85%] relative rounded-lg p-3 text-xs leading-relaxed ${isUser ? 'bg-stone-900 text-white font-mono' : 'bg-stone-200/70 text-stone-800 border border-stone-300/40'}">
-        <div class="whitespace-pre-wrap">${msg.content}</div>
-        <div class="mt-2 flex items-center justify-between text-[10px] opacity-70 border-t border-stone-300/40 pt-1">
-          <span>${msg.time || ''}</span>
-          <div class="flex gap-2">
-            ${!isUser ? `<button onclick="importAIToArchive('${encodeURIComponent(msg.content)}')" class="text-stone-900 font-medium underline hover:opacity-80">📥 导入归档</button>` : ''}
-            <button onclick="deleteChatMessage(${index})" class="text-red-500 hover:underline">删除</button>
-          </div>
-        </div>
-      </div>
+    const messageCard = document.createElement('div');
+    messageCard.className = `
+      max-w-[85%] relative rounded-lg p-3 text-xs leading-relaxed
+      ${isUser
+        ? 'bg-stone-900 text-white font-mono'
+        : 'bg-stone-200/70 text-stone-800 border border-stone-300/40'}
     `;
 
+    const contentEl = document.createElement('div');
+    contentEl.className = 'whitespace-pre-wrap';
+    contentEl.textContent = msg.content || '';
+
+    const footerEl = document.createElement('div');
+    footerEl.className = 'mt-2 flex items-center justify-between text-[10px] opacity-70 border-t border-stone-300/40 pt-1';
+
+    const timeEl = document.createElement('span');
+    timeEl.textContent = msg.time || '';
+
+    const actionEl = document.createElement('div');
+    actionEl.className = 'flex gap-2';
+
+    if (!isUser) {
+      const importBtn = document.createElement('button');
+      importBtn.className = 'text-stone-900 font-medium underline hover:opacity-80';
+      importBtn.textContent = '📥 导入归档';
+      importBtn.addEventListener('click', () => {
+        importAIToArchiveText(msg.content);
+      });
+
+      actionEl.appendChild(importBtn);
+    }
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'text-red-500 hover:underline';
+    deleteBtn.textContent = '删除';
+    deleteBtn.addEventListener('click', () => {
+      deleteChatMessage(index);
+    });
+
+    actionEl.appendChild(deleteBtn);
+
+    footerEl.appendChild(timeEl);
+    footerEl.appendChild(actionEl);
+
+    messageCard.appendChild(contentEl);
+    messageCard.appendChild(footerEl);
+    wrapper.appendChild(messageCard);
     box.appendChild(wrapper);
   });
 
   box.scrollTop = box.scrollHeight;
 }
+
 
 function saveChatHistory() {
   localStorage.setItem('musee_ai_chat_history', JSON.stringify(chatHistory));
@@ -318,14 +353,15 @@ async function rerollLastAIResponse() {
   }
 }
 
-function importAIToArchive(encodedText) {
-  const text = decodeURIComponent(encodedText);
+function importAIToArchiveText(text) {
+  document.getElementById('singleContent').value = text || '';
+  document.getElementById('singleTitle').value =
+    `AI生成灵感 - ${new Date().toLocaleDateString()}`;
 
-  document.getElementById('singleContent').value = text;
-  document.getElementById('singleTitle').value = `AI生成灵感 - ${new Date().toLocaleDateString()}`;
   document.getElementById('singleCategory').value =
     currentPresetKey === 'novelai' ? 'artist-string' : 'template';
 
   toggleAIDrawer(false);
   openDrawer();
 }
+
